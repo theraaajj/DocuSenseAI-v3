@@ -23,6 +23,7 @@ class AppState:
     def __init__(self):
         self.retriever = None
         self.disk_scout = DiskScout()
+        self.indexed_files = []
 
 state = AppState()
 
@@ -53,6 +54,8 @@ async def upload_document(file: UploadFile = File(...)):
         content = await file.read()
         retriever, count = process_uploaded_file(file.filename, content)
         state.retriever = retriever
+        if file.filename not in state.indexed_files:
+            state.indexed_files.append(file.filename)
         return {"message": f"Successfully indexed {count} chunks from {file.filename}", "chunks": count}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -134,10 +137,15 @@ async def add_disk_path(request: PathRequest):
 async def get_disk_paths():
     return {"allowed_paths": [str(p) for p in state.disk_scout.allowed_paths]}
 
+@app.get("/files")
+async def get_indexed_files():
+    return {"files": state.indexed_files}
+
 @app.delete("/memory")
 async def clear_memory():
     state.retriever = None
     state.disk_scout = DiskScout()
+    state.indexed_files = []
     return {"message": "Memory cleared successfully."}
 
 if __name__ == "__main__":

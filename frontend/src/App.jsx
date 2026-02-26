@@ -32,6 +32,7 @@ function App() {
   const [newPath, setNewPath] = useState('');
   const [uploadStatus, setUploadStatus] = useState(null);
   const [selectedSource, setSelectedSource] = useState(null);
+  const [indexedFiles, setIndexedFiles] = useState([]);
 
   const chatEndRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -43,7 +44,17 @@ function App() {
   useEffect(() => {
     scrollToBottom();
     fetchPaths();
+    fetchFiles();
   }, [messages]);
+
+  const fetchFiles = async () => {
+    try {
+      const resp = await axios.get(`${API_BASE}/files`);
+      setIndexedFiles(resp.data.files || []);
+    } catch (e) {
+      console.error("Failed to fetch files", e);
+    }
+  };
 
   const fetchPaths = async () => {
     try {
@@ -97,6 +108,7 @@ function App() {
     try {
       const resp = await axios.post(`${API_BASE}/upload`, formData);
       setUploadStatus(`Indexed ${resp.data.chunks} chunks.`);
+      fetchFiles();
       setTimeout(() => setUploadStatus(null), 3000);
     } catch (err) {
       setUploadStatus("Upload failed.");
@@ -167,6 +179,20 @@ function App() {
             />
           </div>
           {uploadStatus && <p style={{ fontSize: '0.75rem', color: 'var(--primary-color)', marginTop: '8px' }}>{uploadStatus}</p>}
+
+          {indexedFiles.length > 0 && (
+            <div style={{ marginTop: '1rem' }}>
+              <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: '8px', textTransform: 'uppercase', fontWeight: 700 }}>Indexed Documents</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                {indexedFiles.map((f, i) => (
+                  <div key={i} className="source-badge" style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 8px' }}>
+                    <FileText size={12} />
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="sidebar-section">
