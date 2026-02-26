@@ -1,10 +1,11 @@
-# 🧠 DocuSenseAI v2: Privacy-First Local Reasoning Engine
+# 🧠 DocuSenseAI v3: Full-Stack Agentic Reasoning Engine
 
-![Status](https://img.shields.io/badge/Status-Active_Development-orange)
+![Status](https://img.shields.io/badge/Status-v3.0_Stable-brightgreen)
 ![Python](https://img.shields.io/badge/Python-3.10%2B-blue)
-![Inference](https://img.shields.io/badge/Inference-Local_CPU%2FGPU-green)
+![Frontend](https://img.shields.io/badge/Frontend-React_Vite-61dafba)
+![API](https://img.shields.io/badge/API-FastAPI-009688)
 
-**DocuSenseAI v2** is a strictly local, air-gapped reasoning system designed to analyze sensitive documents and local file systems without data ever leaving the user's machine.
+**DocuSenseAI v3** is the production-grade evolution of privacy-first local reasoning. It combines a high-performance **FastAPI** backend, a **React/Vite** premium dashboard, and an **Agentic CRAG (Corrective RAG)** brain to provide a complete, air-gapped solution for document intelligence and local file scouting.
 
 Unlike standard RAG (Retrieval-Augmented Generation) wrappers, this project implements a custom **"Lazy Discovery" architecture** that allows users to query their local hard drive *without* pre-indexing the entire disk, ensuring maximum privacy and minimal resource footprint.
 
@@ -22,26 +23,25 @@ Instead of building a massive vector database of the user's entire hard drive (i
 2.  **Deterministic Filtering:** The system scans file metadata in allowed folders.
 3.  **Lazy Loading:** Only relevant files are opened, tokenized, and injected into the context window at query time.
 
-### 3. Hardware-Adaptive Engineering
-* **Optimized for Consumer Hardware:** Originally built on Llama-3 (8B), the inference engine was refactored to run on **Phi-3 Mini (3.8B)**.
-* **Result:** Capable of running complex reasoning tasks on machines with **<4GB RAM**, preventing OOM (Out of Memory) crashes common in local AI.
+### 3. Agentic Brain (CRAG)
+Unlike linear RAG, v3 implements **Corrective RAG** via LangGraph. The system doesn't just retrieve context—it **grades** it. If the retrieved information is irrelevant, the Agent automatically rewrites the query and tries again, significantly reducing hallucinations.
+
+### 4. Full-Stack Architecture
+Separating the **Reasoning API** from the **Frontend Dashboard** allows for professional deployment, external tool integration, and a premium user experience beyond basic script interfaces.
 
 ---
 
-## 🔄 Why DocuSenseAI v2? (The Evolution)
+## 🔄 Why DocuSenseAI v3? (The Evolution)
 
-**DocuSenseAI v1** proved that local RAG was *possible*. **DocuSenseAI v2** proves it is *practical*.
+**v3** transforms the project from an interactive prototype into a professional-grade software stack.
 
-Most local AI tutorials build "Happy Path" demos—they work perfectly if you upload a pristine text file and have 32GB of RAM. They fail in the real world where data is messy and hardware is constrained.
-
-**v2 was re-engineered from the ground up to solve the "Toy Project" limitations:**
-
-| Feature | v1 (The Prototype) | v2 (The Production Engine) |
+| Feature | v2 (The Engine) | v3 (The Full-Stack Release) |
 | :--- | :--- | :--- |
-| **File Handling** | Crashed on multi-sheet Excels or merged cells. | **Robust Ingestion Pipeline:** Custom Schema Injection detects headers, sanitizes `NaN` values, and handles multi-tab spreadsheets gracefully. |
-| **Memory** | OOM (Out of Memory) crashes on standard laptops. | **Resource-Adaptive:** Swapped heavy 8B models for optimized **Phi-3 (3.8B)**, enabling stable inference on <4GB RAM environments. |
-| **Disk Access** | All-or-nothing indexing (slow & invasive). | **Lazy Discovery:** "Scout" architecture separates intent (logic) from retrieval (IO), accessing files only when cryptographically verified against the allowlist. |
-| **Safety** | trusted the model to "be nice." | **Adversarial Guardrails:** System prompts are engineered to fail safely ("I don't know") rather than hallucinate, with strict unlearning of outside knowledge. |
+| **Architecture** | Monolithic Streamlit App | **Decoupled:** FastAPI Backend + React Frontend. |
+| **RAG Logic** | Linear Retrieval | **Agentic CRAG:** Self-correcting retrieval using LangGraph. |
+| **UI/UX** | Standard Streamlit Layout | **Premium Dashboard:** Custom Glassmorphism, real-time message animations, and dedicated source modals. |
+| **Transparency** | Basic text citations | **Reasoning Trace Panel:** Visual breakdown of chunk relevance grading and decision logic. |
+| **Interoperability** | UI-only | **RESTful API:** Can be queried by external apps via standard POST requests. |
 
 ---
 
@@ -77,8 +77,8 @@ LLMs notoriously struggle with **Excel** and **CSV** files due to tokenization l
 ### Setup
 ```bash
 # 1. Clone the repository
-git clone [https://github.com/yourusername/DocuSenseAI.git](https://github.com/yourusername/DocuSenseAI.git)
-cd DocuSenseAI
+git clone https://github.com/theraaajj/DocuSenseAI-v3.git
+cd DocuSenseAI-v3
 
 # 2. Create Virtual Environment
 python -m venv venv
