@@ -1,9 +1,12 @@
 import os
 import glob
+import pandas as pd
+import docx2txt
 from pathlib import Path
+from langchain_community.document_loaders import PyPDFLoader
 
 # Safety Blocklist- must not scanning entire OS or sensitive system folders
-BLOCKED_DIRS = ["/", "/bin", "/Windows", "/System", "/usr", "/etc"]
+BLOCKED_DIRS = ["/", "/bin", "/Windows", "/System", "/usr", "/etc", "C:\\", "C:\\Windows"]
 
 class DiskScout:
     def __init__(self):
@@ -98,7 +101,8 @@ class DiskScout:
 
             # PDF
             elif ext == ".pdf":
-                return PyPDFLoader(path_str).load()
+                pdf_docs = PyPDFLoader(path_str).load()
+                return "\n".join([doc.page_content for doc in pdf_docs])
             
             # Text/Code
             else:

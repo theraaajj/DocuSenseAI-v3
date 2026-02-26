@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.env
+
+# Node
+node_modules/
+frontend/dist/
+frontend/.env
+
+# Project specific
+faiss_index/
+*.log
+tmp/
+.vscode/
+.idea/
+.DS_Store

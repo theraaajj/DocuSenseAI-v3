@@ -49,11 +49,12 @@ Most local AI tutorials build "Happy Path" demos—they work perfectly if you up
 
 | Component | Technology | Role |
 | :--- | :--- | :--- |
-| **Orchestrator** | Python + Pydantic | Logic control, type safety, and permission guardrails. |
-| **Inference Engine** | **Ollama** (Phi-3 / Llama 3.2) | Local LLM serving and context management. |
-| **Vector Store** | **FAISS** (CPU) | Ephemeral short-term memory for uploaded documents. |
-| **Ingestion** | Pandas, Docx2txt, LangChain | Custom parsing pipeline for structured data (Excel/CSV). |
-| **Interface** | Streamlit | Reactive UI with real-time transparency logs. |
+| **Logic Layer** | FastAPI + Python | High-performance REST API and process management. |
+| **Agentic Brain** | LangGraph (CRAG) | Agentic Corrective RAG state machine for self-correcting retrieval. |
+| **Frontend** | React + Vite | Premium, reactive web dashboard with glassmorphism. |
+| **Inference** | Ollama (Phi-3 / Llama 3.2) | Local LLM serving and context management. |
+| **Vector Store** | FAISS + BM25 | Hybrid Ensemble Retriever (Semantic + Keyword). |
+| **Legacy UI** | Streamlit | Quick-turnaround prototyping interface. |
 
 ---
 
@@ -86,10 +87,23 @@ source venv/bin/activate  # or venv\Scripts\activate on Windows
 # 3. Install Dependencies
 pip install -r requirements.txt
 
-# 4. Pull the Optimized Model
+# 4. Pull the Models
 ollama pull phi3
+ollama pull llama3.2
+ollama pull nomic-embed-text
 
-# 5. Run the engine
+# 5. Run the Backend API
+python main_api.py
+
+# 6. Run the React Frontend (In a new terminal)
+cd frontend
+npm install
+npm run dev
+```
+
+### Legacy Interface
+If you prefer the original Streamlit interface:
+```bash
 streamlit run app.py
 ```
 

@@ -5,21 +5,28 @@ import ollama
 from langchain_community.document_loaders import PyPDFLoader, Docx2txtLoader, UnstructuredExcelLoader, TextLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
-from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_community.retrievers import BM25Retriever
+try:
+    from langchain.retrievers import EnsembleRetriever
+except ImportError:
+    from langchain_classic.retrievers import EnsembleRetriever
+from langchain_community.embeddings import OllamaEmbeddings
 from langchain_core.documents import Document
+from graph import crag_graph   # Phase 1: LangGraph CRAG graph
 
-embedding_model = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+# Uses local ollama nomic-embed-text model — no torch/HuggingFace required
+embedding_model = OllamaEmbeddings(model="nomic-embed-text")
 
-def process_uploaded_file(uploaded_file):
+def process_uploaded_file(filename, content):
     """
     Ingests PDF, DOCX, XLSX, CSV, TXT, or MD.
     Handles multiple Excel sheets and merged cells better, and returns the vector store.
     """
     # save to temp file (preserving extension -crucial)
-    file_ext = os.path.splitext(uploaded_file.name)[1].lower()
+    file_ext = os.path.splitext(filename)[1].lower()
     
     with tempfile.NamedTemporaryFile(delete=False, suffix=file_ext) as tmp_file:
-        tmp_file.write(uploaded_file.getvalue())
+        tmp_file.write(content)
         tmp_path = tmp_file.name
 
     try:
@@ -86,7 +93,18 @@ def process_uploaded_file(uploaded_file):
 
         # TXT, MD, PY
         elif file_ext in [".txt", ".md", ".py"]:
-            loader = TextLoader(tmp_path)
+            try:
+                loader = TextLoader(tmp_path, encoding="utf-8")
+                raw_docs = loader.load()
+            except Exception:
+                # Fallback to latin-1 if utf-8 fails (common for some Windows files)
+                loader = TextLoader(tmp_path, encoding="ISO-8859-1")
+                raw_docs = loader.load()
+        
+        # Word
+        elif file_ext == ".docx":
+            from langchain_community.document_loaders import Docx2txtLoader
+            loader = Docx2txtLoader(tmp_path)
             raw_docs = loader.load()
 
         else:
@@ -96,51 +114,60 @@ def process_uploaded_file(uploaded_file):
         # Final Splitting & Vectorizing
         text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=1500, 
-            chunk_overlap=150,  ## need to play with the chunk overlap during evaluation
+            chunk_overlap=150,
             add_start_index=True
         )
         chunks = text_splitter.split_documents(raw_docs)
         
+        # 1. Semantic Retriever (FAISS)
         vector_store = FAISS.from_documents(chunks, embedding_model)
-        return vector_store, len(chunks)
+        faiss_retriever = vector_store.as_retriever(search_kwargs={"k": 5})
+
+        # 2. Keyword Retriever (BM25)
+        bm25_retriever = BM25Retriever.from_documents(chunks)
+        bm25_retriever.k = 5
+
+        # 3. Hybrid Ensemble (RRF)
+        # Weights: 70% Semantic, 30% Keyword - good balance for documents
+        hybrid_retriever = EnsembleRetriever(
+            retrievers=[faiss_retriever, bm25_retriever], 
+            weights=[0.7, 0.3]
+        )
+
+        return hybrid_retriever, len(chunks)
 
     finally:
         if os.path.exists(tmp_path):
             os.remove(tmp_path)
 
-def query_local_model(query, vector_store):
-    """
-    1. Search the vector store for relevant chunks.
-    2. Send them to Ollama (Llama 3) to generate a formatted answer.
-    """
-    # retrieves the top 3 most relevant chunks (need to play with the k during evaluation)
-    docs = vector_store.similarity_search(query, k=3)
-    
-    # context string
-    context_text = "\n\n---\n\n".join([doc.page_content for doc in docs])
-    
-    # System Prompt needs to be strict. will prevent hallucinations
-    system_prompt = f"""
-    You are DocuSenseAI, a secure local reasoning assistant.
-    STRICT RULES:
-    1. USE ONLY the provided context.
-    2. If the answer is NOT in the context, strictly state: "I cannot find this information in the provided files."
-    3. Do NOT invent facts. Do NOT use outside knowledge (like "As an AI...").
-    4. If the user asks to "Summarize", provide a structured summary with bullet points.
-    5. If the user asks to "Write content", provide the raw text verbatim.
 
-    CONTEXT FROM FILES:
-    {context_text}
+def query_local_model(query, retriever):
     """
+    Phase 1 Upgrade: Delegates to the LangGraph CRAG graph instead of a linear call.
 
-    # Ollama call
-    response = ollama.chat(model='phi3', messages=[
-        {'role': 'system', 'content': system_prompt},
-        {'role': 'user', 'content': query},
-    ])
+    Returns:
+        answer (str)      — the generated text
+        sources (list)    — docs used for generation (relevant ones, or all retrieved as fallback)
+        grade_log (list)  — [{chunk_preview, is_relevant, reason}, ...] for the UI trace
+    """
+    initial_state = {
+        "query": query,
+        "original_query": query,
+        "retriever": retriever,
+        "documents": [],
+        "relevant_docs": [],
+        "generation": "",
+        "retries": 0,
+        "grade_log": [],
+    }
 
-    # returns the generated answer, alongwith the source docs
-    return response['message']['content'], docs
+    final_state = crag_graph.invoke(initial_state)
+
+    answer = final_state.get("generation", "No answer generated.")
+    sources = final_state.get("relevant_docs") or final_state.get("documents", [])
+    grade_log = final_state.get("grade_log", [])
+
+    return answer, sources, grade_log
 
 
 def extract_search_keyword(user_query):
@@ -162,7 +189,7 @@ def extract_search_keyword(user_query):
     """
     
     try:
-        response = ollama.chat(model='llama3', messages=[
+        response = ollama.chat(model='llama3.2', messages=[
             {'role': 'system', 'content': system_prompt},
             {'role': 'user', 'content': user_query},
         ])

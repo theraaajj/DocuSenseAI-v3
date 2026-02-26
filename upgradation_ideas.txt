@@ -1,0 +1,36 @@
+🏗️ Phase 1: From Linear to Agentic (The "Brain" Upgrade)
+The biggest "newbie" signal is a linear Query -> Search -> Answer flow. You need to introduce Loops and Reasoning.
+- Implement LangGraph: Replace standard LangChain/LlamaIndex flows with a state machine.
+- The "Corrective RAG" (CRAG) Pattern: 1.  Retrieve documents.2.  Grade them using a fast model (Llama 3-8B).3.  Action: If the documents are relevant, generate an answer. If they are irrelevant, trigger a Query Rewrite or a fallback to a search tool.
+- Structured Output: Use Pydantic to ensure the LLM returns a JSON object (e.g., { "is_relevant": true, "confidence": 0.9, "reason": "..." }) rather than just text.
+
+🛠️ Phase 2: Professional Retrieval (The "Precision" Upgrade)
+Standard vector search (Cosine Similarity) is noisy. Engineers want to see Hybrid Search and Re-ranking.
+- Hybrid Retrieval: Combine your Vector DB (semantic) with BM25 (keyword) search. This ensures names, dates, and specific IDs in your offer letters or sales data don't get lost in the "vibe" of the vector search.
+- Re-ranking: Add a Cross-Encoder (like BGE-Reranker). Retrieval gets you the top 20 results; the Re-ranker accurately picks the top 3. This significantly reduces hallucinations.
+- Parent-Document Retrieval: Instead of indexing small chunks, index "Parent" documents. When a small chunk is found, the system pulls the entire surrounding paragraph for the LLM. This provides much better context.
+
+📊 Phase 3: The "Engineering" Tier (The Observability Upgrade)
+This is what separates students from professionals. You need to prove the system works with Data.
+- Tracing with Arize Phoenix or LangSmith: (Both have free tiers). Show a screenshot of a "Trace" in your README. This shows every step the AI took—what it searched for, what it found, and how much it cost.
+- Evaluation with RAGAS/DeepEval: Don't just say "it works." Run a benchmark.
+Faithfulness: How often is the answer actually supported by the document?
+Answer Relevancy: How well did it answer the user's specific intent?
+Context Precision: Did the retriever find the right information?
+
+
+🔧 Updated Free-Tier Tech Stack for DocuSenseAI v2
+
+Orchestration -> LangGraph -> Handles complex, cyclic logic & state management.
+Inference -> Groq (Llama 3.1 70B) -> Blazing fast, handles complex reasoning for free.
+Vector Store -> Qdrant (Cloud Free Tier) ->Supports advanced filtering and hybrid search natively.
+Evaluation -> DeepEval -> "Unit testing for LLMs"—perfect for a Python dev background.
+Observability -> Arize Phoenix -> Open-source, industry-standard tracing.
+
+
+How to frame this on your Resume/LinkedIn:
+
+"Architected DocuSenseAI v2, evolving it from a naive RAG pipeline to a Self-Correcting Agentic System. Implemented a multi-stage retrieval process using Hybrid Search and Cross-Encoder Re-ranking, reducing hallucination rates by [X]% as measured by the RAGAS evaluation framework."
+
+
+Would you like me to help you write the specific Python logic for a "Grader Node" that decides if a retrieved document is actually useful?

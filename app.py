@@ -7,41 +7,36 @@ st.set_page_config(page_title="DocuSenseAI v2.0", layout="wide")
 # initialize session state initialization
 if "disk_scout" not in st.session_state:
     st.session_state.disk_scout = DiskScout()
-if "vector_store" not in st.session_state:
-    st.session_state.vector_store = None
-
-# st.title("🧠 DocuSenseAI v2")
+if "retriever" not in st.session_state:
+    st.session_state.retriever = None
 
 # sidebar for memory control and uploads, access!! 
 with st.sidebar:
     st.image("https://img.icons8.com/color/96/000000/artificial-intelligence.png", width=50)
     st.title("DocuSenseAI")
-    st.caption("v2.0 | Local | Privacy-First")
+    st.caption("v2.0 | Local | Privacy-First | Agentic CRAG")
     st.divider()
 
     st.caption("Memory Control")
     # Clear Memory Button
     if st.button("🗑️ Forget All Data"):
-        st.session_state.vector_store = None
+        st.session_state.retriever = None
         st.session_state.disk_scout = DiskScout() # Re-init to clear paths
         st.rerun() # refreshes the app
 
-    # st.header("Data Sources")
     st.divider()
     
     # Uploads (Deep Read)
-    # st.subheader("📄 Uploads")
     uploaded_file = st.file_uploader("Upload Document", type=["pdf", "docx", "xlsx", "csv", "txt", "md"])    
     if uploaded_file and st.button("Process Upload"):
         with st.spinner("Ingesting..."):
-            index, count = process_uploaded_file(uploaded_file)
-            st.session_state.vector_store = index
+            retriever, count = process_uploaded_file(uploaded_file.name, uploaded_file.getvalue())
+            st.session_state.retriever = retriever
             st.success(f"Indexed {count} chunks.")
 
     st.divider()
 
     # Local Disk (The Scout)
-    # st.subheader("📂 Local Disk Access")
     folder_path = st.text_input("Add Folder Path (e.g., C:/Projects)")
     if st.button("Grant Permission"):
         success, msg = st.session_state.disk_scout.add_path(folder_path)
@@ -61,40 +56,59 @@ st.subheader("Let's Reason! - Ask DocuSenseAI")
 st.caption("Your AI-powered assistant who respects your privacy..")
 st.divider()
 
-
 # asks to select mode, from uploaded documents or local disk scout
 search_mode = st.radio("Search Mode:", ["Uploaded Documents", "Local Disk Scout"], horizontal=True)
 st.divider()
 
-# query = st.text_input("What are you looking for?")
 query = st.text_input("What are you looking for?")
 
 
 if query and st.button("Ask AI"):
     
-    # UPLOADED DOCUMENTS
+    # ── UPLOADED DOCUMENTS (Phase 1: CRAG Agentic Flow) ──────────────────────────
     if search_mode == "Uploaded Documents":
-        if st.session_state.vector_store:
-            with st.spinner("Thinking..."):
-                answer, sources = query_local_model(query, st.session_state.vector_store)
+        if st.session_state.retriever:
+            with st.spinner("🧠 Agent reasoning..."):
+                answer, sources, grade_log = query_local_model(query, st.session_state.retriever)
+
             st.markdown("### 🤖 Answer:")
             st.write(answer)
             st.divider()
-            with st.expander("View Source Chunks"):
+
+            # ── Agent Reasoning Trace ────────────────────────────────────────────
+            if grade_log:
+                relevant_count = sum(1 for g in grade_log if g["is_relevant"])
+                total_count = len(grade_log)
+                rewrites = 0
+                # infer rewrites: if any query rewrite happened, sources < grade_log implies looping
+                # (we can surface retry count when we add it to state later)
+
+                with st.expander(f"🧠 Agent Reasoning Trace  —  {relevant_count}/{total_count} chunks passed grading"):
+                    for i, entry in enumerate(grade_log):
+                        icon = "✅" if entry["is_relevant"] else "❌"
+                        relevance_label = "Relevant" if entry["is_relevant"] else "Irrelevant"
+                        st.markdown(f"**Chunk {i+1}** {icon} `{relevance_label}`")
+                        st.caption(f"💬 Grader: _{entry['reason']}_")
+                        with st.expander(f"Preview chunk {i+1}", expanded=False):
+                            st.text(entry["chunk_preview"])
+                        st.divider()
+
+                    if relevant_count == 0:
+                        st.warning("⚠️ All chunks were graded irrelevant. A query rewrite was attempted before generating the final answer.")
+                    elif relevant_count < total_count:
+                        st.info(f"ℹ️ {total_count - relevant_count} chunk(s) were filtered out. Answer was generated from the {relevant_count} relevant chunk(s).")
+                    else:
+                        st.success("✅ All chunks passed grading. Answer generated from full context.")
+
+            # ── Source Chunks ────────────────────────────────────────────────────
+            with st.expander("📄 View Source Chunks Used"):
                 for doc in sources:
                     st.info(doc.page_content)
         else:
             st.error("Please upload a document first.")
 
-    # LOCAL DISK SCOUT
+    # ── LOCAL DISK SCOUT (unchanged) ─────────────────────────────────────────────
     elif search_mode == "Local Disk Scout":
-        # We ask the LLM: "What file is the user looking for?"
-        # If the user typed "Write the content as it is?", this might fail if they didn't specify a file.
-        # But if they typed "Write the content of the budget file", it will extract "budget".
-        
-        # need to handle the case where the user is referring to previous results, somewhat like a chain of thought 
-        # For now, just assuming every query is a fresh search
-        
         from processor import extract_search_keyword
         
         with st.spinner("Deciding what to search for..."):
